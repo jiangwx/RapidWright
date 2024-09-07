@@ -3,29 +3,41 @@ import torch.nn as nn
 import numpy as np
 
 def convolution(ifm, weight, bias, layer):
-    out_height = (layer['in_height'] + 2 * layer['pad_h'] - layer['dilation_h'] * (layer['kernel_h'] - 1) - 1) // layer['stride_h'] + 1
-    out_width = (layer['in_width'] + 2 * layer['pad_w'] - layer['dilation_w'] * (layer['kernel_w'] - 1) - 1) // layer['stride_w'] + 1
-    layer['out_height'] = out_height
-    layer['out_width'] = out_width
-    print(layer)
-    ofm = np.zeros((layer['out_channel'], out_height, out_width))
-
-    for oh in range(out_height):
-        for ow in range(out_width):
+    ofm = np.zeros((layer['out_channel'], layer['out_height'], layer['out_width']))
+    for oh in range(layer['out_height']):
+        for ow in range(layer['out_width']):
             for oc in range(layer['out_channel']):
                 y_data = 0
-                for ic in range(layer['in_channel']):
-                    for kh in range(layer['kernel_h']):
-                        for kw in range(layer['kernel_w']):
-                            in_height = oh * layer['stride_h'] - layer['pad_h'] + kh * layer['dilation_h']
-                            in_width = ow * layer['stride_w'] - layer['pad_w'] + kw * layer['dilation_w']
-                            if (0 <= in_height < layer['in_height']) and (0 <= in_width < layer['in_width']):
+                for kh in range(layer['kernel_h']):
+                    for kw in range(layer['kernel_w']):
+                        in_height = oh * layer['stride_h'] - layer['pad_h'] + kh * layer['dilation_h']
+                        in_width = ow * layer['stride_w'] - layer['pad_w'] + kw * layer['dilation_w']
+                        if (0 <= in_height < layer['in_height']) and (0 <= in_width < layer['in_width']):
+                            for ic in range(layer['in_channel']):
                                 ifm_index = ic * layer['in_height'] * layer['in_width'] + in_height * layer['in_width'] + in_width
                                 wgt_index = oc * layer['kernel_h'] * layer['kernel_w'] * layer['in_channel'] + ic * layer['kernel_h'] * layer['kernel_w'] + kh * layer['kernel_w'] + kw
                                 x_data = ifm[ifm_index]
                                 w_data = weight[wgt_index]
                                 y_data += x_data * w_data
                 ofm[oc][oh][ow] = y_data + bias[oc]
+    return ofm
+
+def im2col(ifm, layer):
+    M = layer['out_height'] * layer['out_width']
+    K = layer['in_channel'] * layer['kernel_h'] * layer['kernel_w']
+    ofm = np.zeros((M, K))
+    for oh in range(layer['out_height']):
+        for ow in range(layer['out_width']):
+                for kh in range(layer['kernel_h']):
+                    for kw in range(layer['kernel_w']):
+                        in_height = oh * layer['stride_h'] - layer['pad_h'] + kh * layer['dilation_h']
+                        in_width = ow * layer['stride_w'] - layer['pad_w'] + kw * layer['dilation_w']
+                        if (0 <= in_height < layer['in_height']) and (0 <= in_width < layer['in_width']):
+                            for ic in range(layer['in_channel']):
+                                ifm_index = ic * layer['in_height'] * layer['in_width'] + in_height * layer['in_width'] + in_width
+                                m_index = oh*layer['out_width'] + ow
+                                k_index = ic*layer['kernel_h']*layer['kernel_w'] + kh*layer['kernel_w'] + kw
+                                ofm[m_index][k_index] = ifm[ifm_index]
     return ofm
 
 def test_convolution():
@@ -40,8 +52,8 @@ def test_convolution():
     stride_w = np.random.randint(1,5)
     pad_h = np.random.randint(0,kernel_h)
     pad_w = np.random.randint(0,kernel_w)
-    dilation_h = np.random.randint(1,in_height)
-    dilation_w = np.random.randint(1,in_width)
+    dilation_h = np.random.randint(1,in_height+1)
+    dilation_w = np.random.randint(1,in_width+1)
     out_height = (in_height + 2 * pad_h - dilation_h * (kernel_h - 1) - 1) // stride_h + 1
     out_width = (in_width + 2 * pad_w - dilation_w * (kernel_w - 1) - 1) // stride_w + 1
     if(out_height <= 0 or out_width <= 0):
@@ -50,6 +62,8 @@ def test_convolution():
     layer = {
         'in_height': in_height,
         'in_width': in_width,
+        'out_height': out_height,
+        'out_width': out_width,
         'in_channel': in_channel,
         'out_channel': out_channel,
         'kernel_h': kernel_h,
@@ -61,6 +75,7 @@ def test_convolution():
         'dilation_h': dilation_h,
         'dilation_w': dilation_w
     }
+    print(layer)
 
     # 创建输入数据
     ifm = np.random.randint(-128, 127, size=(in_channel, in_height, in_width))
@@ -69,6 +84,15 @@ def test_convolution():
 
     # 调用卷积函数
     ofm_custom = convolution(ifm.flatten(), weight.flatten(), bias.flatten(), layer)
+
+    ifm_im2col = im2col(ifm.flatten(), layer)
+    weight_im2col = weight.reshape((out_channel, in_channel*kernel_h*kernel_w))
+    ofm_im2col = np.matmul(ifm_im2col, weight_im2col.transpose())
+    ofm_im2col_t = ofm_im2col.transpose()
+    print(ifm_im2col.shape, weight_im2col.transpose().shape, ofm_im2col_t.shape, out_channel)
+    for i in range(out_channel):
+        ofm_im2col_t[i] += bias[i]
+    
 
     # 使用torch.nn.Conv2d
     ifm_torch = torch.tensor(ifm, dtype=torch.float32)
@@ -85,13 +109,19 @@ def test_convolution():
     ofm_torch = conv_layer(ifm_torch)
 
     # 将PyTorch张量转换为NumPy数组
-    ofm_torch_np = ofm_torch.detach().numpy()
+    ofm_torch_np = ofm_torch.detach().numpy().flatten()
 
-    diff = ofm_torch_np - ofm_custom
+    diff = ofm_torch_np - ofm_custom.flatten()
     if(np.abs(diff).sum() == 0.0):
-        print("pass")
+        print("convolution pass")
     else:
-        print("fail")
+        print("convolution fail")
+
+    diff = ofm_torch_np - ofm_im2col_t.flatten()
+    if(np.abs(diff).sum() == 0.0):
+        print("gemm pass")
+    else:
+        print("gemm fail")
     return True
 
 test_num = 10
