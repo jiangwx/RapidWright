@@ -40,71 +40,6 @@ def convolution(ifm, weight, bias, layer):
                 ofm[oc][oh][ow] = y_data + bias[oc]
     return ofm
 
-def im2col_ifm_major(ifm, layer):
-    out_height = layer['out_height']
-    out_width = layer['out_width']
-    in_height = layer['in_height']
-    in_width = layer['in_width']
-    in_channel = layer['in_channel']
-    kernel_h = layer['kernel_h']
-    kernel_w = layer['kernel_w']
-    stride_h = layer['stride_h']
-    stride_w = layer['stride_w']
-    pad_h = layer['pad_h']
-    pad_w = layer['pad_w']
-    dilation_h = layer['dilation_h']
-    dilation_w = layer['dilation_w']
-    M = out_height * out_width
-    K = in_channel * kernel_h * kernel_w
-
-    ofm = np.zeros((M, K))
-    for oh in range(out_height):
-        for ow in range(out_width):
-            for kh in range(kernel_h):
-                for kw in range(kernel_w):
-                    ih = oh * stride_h - pad_h + kh * dilation_h
-                    iw = ow * stride_w - pad_w + kw * dilation_w
-                    if (0 <= ih < in_height) and (0 <= iw < in_width):
-                        for ic in range(in_channel):
-                            ifm_index = ic*in_height*in_width + ih*in_width + iw
-                            m_index = oh*out_width + ow
-                            k_index = ic*kernel_h*kernel_w + kh*kernel_w + kw
-                            ofm[m_index][k_index] = ifm[ifm_index]
-    return ofm
-
-def ifm_CHW2MK(ifm, layer):
-    out_height = layer['out_height']
-    out_width = layer['out_width']
-    in_height = layer['in_height']
-    in_width = layer['in_width']
-    in_channel = layer['in_channel']
-    kernel_h = layer['kernel_h']
-    kernel_w = layer['kernel_w']
-    stride_h = layer['stride_h']
-    stride_w = layer['stride_w']
-    pad_h = layer['pad_h']
-    pad_w = layer['pad_w']
-    dilation_h = layer['dilation_h']
-    dilation_w = layer['dilation_w']
-
-    M = out_height * out_width
-    K = in_channel * kernel_h * kernel_w
-    ofm = np.zeros((M, K))
-
-    for m in range(M):
-        for k in range(K):
-            oh = m // out_width
-            ow = m % out_width
-            ic = k // (kernel_h * kernel_w)
-            kh = (k // kernel_w) % kernel_h
-            kw = k % kernel_w
-            ih = oh * stride_h - pad_h + kh * dilation_h
-            iw = ow * stride_w - pad_w + kw * dilation_w
-            if (0 <= ih < in_height) and (0 <= iw < in_width):
-                ifm_index = ic * in_height * in_width + ih * in_width + iw
-                ofm[m][k] = ifm[ifm_index]
-    return ofm
-
 def fm_CHW2CHWc(ifm, layer):
     in_channel = layer['in_channel']
     in_height = layer['in_height']
@@ -117,66 +52,6 @@ def fm_CHW2CHWc(ifm, layer):
     ifm_HWCc = ifm_HWC_.reshape((in_height, in_width, C, c))
     ifm_CHWc = ifm_HWCc.transpose((2, 0, 1, 3))
     return ifm_CHWc
-
-def wt_OCICKhKw2OCCKhKwc(weight, layer):
-    out_channel = layer['out_channel']
-    in_channel = layer['in_channel']
-    kernel_h = layer['kernel_h']
-    kernel_w = layer['kernel_w']
-    C = (in_channel + c - 1) // c
-    weight_OCICKhKw = weight.reshape((out_channel, in_channel, kernel_h, kernel_w))
-    weight_OCKhKwIC = weight_OCICKhKw.transpose((0, 2, 3, 1))
-    weight_OCKhKwIC_ = np.zeros((out_channel, kernel_h, kernel_w, C*c))
-    for ic in range(in_channel):
-        weight_OCKhKwIC_[:, :, :, ic] = weight_OCKhKwIC[:, :, :, ic]
-    weight_OCKhKwCc = weight_OCKhKwIC_.reshape((out_channel, kernel_h, kernel_w, C, c))
-    weight_OCCKhKwc = weight_OCKhKwCc.transpose((0, 3, 1, 2, 4))
-    return weight_OCCKhKwc
-
-def wt_OCICKhKw2OCCcKhKw(weight, layer):
-    out_channel = layer['out_channel']
-    in_channel = layer['in_channel']
-    kernel_h = layer['kernel_h']
-    kernel_w = layer['kernel_w']
-    C = (in_channel + c - 1) // c
-    weight_OCCcKhKw = np.zeros((out_channel, C*c, kernel_h, kernel_w))
-    for ic in range(in_channel):
-        weight_OCCcKhKw[:, ic, :, :] = weight[:, ic, :, :]
-    return weight_OCCcKhKw.reshape((out_channel, C*c*kernel_h*kernel_w))
-
-def fm_CHWc2MK(ifm, layer):
-    out_height = layer['out_height']
-    out_width = layer['out_width']
-    in_height = layer['in_height']
-    in_width = layer['in_width']
-    in_channel = layer['in_channel']
-    kernel_h = layer['kernel_h']
-    kernel_w = layer['kernel_w']
-    stride_h = layer['stride_h']
-    stride_w = layer['stride_w']
-    pad_h = layer['pad_h']
-    pad_w = layer['pad_w']
-    dilation_h = layer['dilation_h']
-    dilation_w = layer['dilation_w']
-    C = (in_channel + c - 1) // c
-    M = out_height * out_width
-    K = C * c * kernel_h * kernel_w
-    ofm = np.zeros((M, K))
-
-    for m in range(M):
-        for k in range(K):
-            oh = m // out_width
-            ow = m % out_width
-            ic = k // (kernel_h * kernel_w)
-            kh = (k // kernel_w) % kernel_h
-            kw = k % kernel_w
-            ih = oh * stride_h - pad_h + kh * dilation_h
-            iw = ow * stride_w - pad_w + kw * dilation_w
-            if (0 <= ih < in_height) and (0 <= iw < in_width):
-                c_idx = ic % c
-                C_idx = ic // c
-                ofm[m][k] = ifm[C_idx][ih][iw][c_idx]
-    return ofm
 
 def fm_CHWc2M1K1M0K0(ifm, layer):
     out_height = layer['out_height']
@@ -201,7 +76,6 @@ def fm_CHWc2M1K1M0K0(ifm, layer):
     M1 = (M + M0 - 1) // M0
     K1 = (K + K0 - 1) // K0
     ofm = np.zeros((M1, K1, M0, K0))
-    print(ofm.shape)
     for m1 in range(M1):
         for k1 in range(K1):
             for m0 in range(M0):
@@ -210,25 +84,40 @@ def fm_CHWc2M1K1M0K0(ifm, layer):
                     k = k1 * K0 + k0
                     oh = m // out_width
                     ow = m % out_width
-                    ic = k // (kernel_h * kernel_w)
-                    kh = (k // kernel_w) % kernel_h
-                    kw = k % kernel_w
+                    # k = C_idx*kernel_h*kernel_w*c + kh*kernel_w*c + kw*c + ic
+                    C_idx = k // (kernel_h * kernel_w * c)
+                    kh = (k // (kernel_w * c)) % kernel_h
+                    kw = (k // c) % kernel_w
+                    c_idx = k % c
                     ih = oh * stride_h - pad_h + kh * dilation_h
                     iw = ow * stride_w - pad_w + kw * dilation_w
-                    C_idx = ic // c
-                    c_idx = ic % c
                     if (0 <= ih < in_height) and (0 <= iw < in_width):
                         ofm[m1][k1][m0][k0] = ifm[C_idx][ih][iw][c_idx]
     return ofm
 
-def wt_OCCcKhKw2K1N1K0N0(weight, layer):
+def wt_OCICKhKw2OCCKhKwc(weight, layer):
+    out_channel = layer['out_channel']
+    in_channel = layer['in_channel']
+    kernel_h = layer['kernel_h']
+    kernel_w = layer['kernel_w']
+    C = (in_channel + c - 1) // c
+    weight_OCICKhKw = weight.reshape((out_channel, in_channel, kernel_h, kernel_w))
+    weight_OCKhKwIC = weight_OCICKhKw.transpose((0, 2, 3, 1))
+    weight_OCKhKwIC_ = np.zeros((out_channel, kernel_h, kernel_w, C*c))
+    for ic in range(in_channel):
+        weight_OCKhKwIC_[:, :, :, ic] = weight_OCKhKwIC[:, :, :, ic]
+    weight_OCKhKwCc = weight_OCKhKwIC_.reshape((out_channel, kernel_h, kernel_w, C, c))
+    weight_OCCKhKwc = weight_OCKhKwCc.transpose((0, 3, 1, 2, 4))
+    return weight_OCCKhKwc
+
+def wt_OCCKhKwc2K1N1K0N0(weight, layer):
     out_channel = layer['out_channel']
     in_channel = layer['in_channel']
     kernel_h = layer['kernel_h']
     kernel_w = layer['kernel_w']
     C = (in_channel + c - 1) // c
     N = out_channel
-    K = C * c * kernel_h * kernel_w
+    K = C * kernel_h * kernel_w * c
     N1 = (N + N0 - 1) // N0
     K1 = K // K0
     assert( K % K0 == 0)
@@ -350,20 +239,13 @@ def test_convolution():
 
     # 先转成CHWc, 再使用im2col和gemm
     ifm_CHWc = fm_CHW2CHWc(ifm, layer)
-    weight_OCCcKhKw = wt_OCICKhKw2OCCcKhKw(weight, layer)
+    weight_OCCKhKwc = wt_OCICKhKw2OCCKhKwc(weight, layer)
     ifm_M1K1M0K0 = fm_CHWc2M1K1M0K0(ifm_CHWc, layer)
-    weight_K1N1K0N0 = wt_OCCcKhKw2K1N1K0N0(weight_OCCcKhKw, layer)
+    weight_K1N1K0N0 = wt_OCCKhKwc2K1N1K0N0(weight_OCCKhKwc, layer)
     bias_N1N0 = bias_N2N02N1N0(bias, layer)
-    print("ifm_CHWc shape: ", ifm_CHWc.shape)
-    print("weight_OCCcKhKw shape: ", weight_OCCcKhKw.shape)
-    print("ifm_M1K1M0K0 shape: ", ifm_M1K1M0K0.shape)
-    print("weight_K1N1K0N0 shape: ", weight_K1N1K0N0.shape)
     ofm_M1N1M0N0 = matmul_m1k1m0k0_k1n1k0n0(ifm_M1K1M0K0, weight_K1N1K0N0, bias_N1N0)
-    print("ofm_M1N1M0N0 shape: ", ofm_M1N1M0N0.shape)
     ofm_MN = fm_M1N1M0N02MN(ofm_M1N1M0N0)
-    print("ofm_MN shape: ", ofm_MN.shape)
     ofm_CHW = fm_MN2CHW(ofm_MN, layer)
-    print("ofm_CHW shape: ", ofm_CHW.shape)
 
     # 使用torch.nn.Conv2d
     ifm_torch = torch.tensor(ifm, dtype=torch.float32)
