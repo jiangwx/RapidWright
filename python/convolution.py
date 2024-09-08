@@ -79,20 +79,17 @@ def fm_CHWc2M1K1M0K0(ifm, layer):
     for m1 in range(M1):
         for k1 in range(K1):
             for m0 in range(M0):
-                for k0 in range(K0):
-                    m = m1 * M0 + m0
-                    k = k1 * K0 + k0
-                    oh = m // out_width
-                    ow = m % out_width
-                    # k = C_idx*kernel_h*kernel_w*c + kh*kernel_w*c + kw*c + ic
-                    C_idx = k // (kernel_h * kernel_w * c)
-                    kh = (k // (kernel_w * c)) % kernel_h
-                    kw = (k // c) % kernel_w
-                    c_idx = k % c
-                    ih = oh * stride_h - pad_h + kh * dilation_h
-                    iw = ow * stride_w - pad_w + kw * dilation_w
-                    if (0 <= ih < in_height) and (0 <= iw < in_width):
-                        ofm[m1][k1][m0][k0] = ifm[C_idx][ih][iw][c_idx]
+                m = m1 * M0 + m0
+                oh = m // out_width
+                ow = m % out_width
+                # k = C_idx*kernel_h*kernel_w*c + kh*kernel_w*c + kw*c + ic
+                C_idx = k1 // (kernel_h * kernel_w)
+                kh = (k1 // kernel_w) % kernel_h
+                kw = k1 % kernel_w
+                ih = oh * stride_h - pad_h + kh * dilation_h
+                iw = ow * stride_w - pad_w + kw * dilation_w
+                if (0 <= ih < in_height) and (0 <= iw < in_width):
+                    ofm[m1][k1][m0] = ifm[C_idx][ih][iw]
     return ofm
 
 def wt_OCICKhKw2OCCKhKwc(weight, layer):
