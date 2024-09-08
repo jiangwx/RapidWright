@@ -22,22 +22,69 @@ def convolution(ifm, weight, bias, layer):
                 ofm[oc][oh][ow] = y_data + bias[oc]
     return ofm
 
-def im2col(ifm, layer):
-    M = layer['out_height'] * layer['out_width']
-    K = layer['in_channel'] * layer['kernel_h'] * layer['kernel_w']
+def im2col_ifm_major(ifm, layer):
+    out_height = layer['out_height']
+    out_width = layer['out_width']
+    in_height = layer['in_height']
+    in_width = layer['in_width']
+    in_channel = layer['in_channel']
+    kernel_h = layer['kernel_h']
+    kernel_w = layer['kernel_w']
+    stride_h = layer['stride_h']
+    stride_w = layer['stride_w']
+    pad_h = layer['pad_h']
+    pad_w = layer['pad_w']
+    dilation_h = layer['dilation_h']
+    dilation_w = layer['dilation_w']
+    M = out_height * out_width
+    K = in_channel * kernel_h * kernel_w
+
     ofm = np.zeros((M, K))
-    for oh in range(layer['out_height']):
-        for ow in range(layer['out_width']):
-                for kh in range(layer['kernel_h']):
-                    for kw in range(layer['kernel_w']):
-                        in_height = oh * layer['stride_h'] - layer['pad_h'] + kh * layer['dilation_h']
-                        in_width = ow * layer['stride_w'] - layer['pad_w'] + kw * layer['dilation_w']
-                        if (0 <= in_height < layer['in_height']) and (0 <= in_width < layer['in_width']):
-                            for ic in range(layer['in_channel']):
-                                ifm_index = ic * layer['in_height'] * layer['in_width'] + in_height * layer['in_width'] + in_width
-                                m_index = oh*layer['out_width'] + ow
-                                k_index = ic*layer['kernel_h']*layer['kernel_w'] + kh*layer['kernel_w'] + kw
-                                ofm[m_index][k_index] = ifm[ifm_index]
+    for oh in range(out_height):
+        for ow in range(out_width):
+            for kh in range(kernel_h):
+                for kw in range(kernel_w):
+                    ih = oh * stride_h - pad_h + kh * dilation_h
+                    iw = ow * stride_w - pad_w + kw * dilation_w
+                    if (0 <= ih < in_height) and (0 <= iw < in_width):
+                        for ic in range(in_channel):
+                            ifm_index = ic*in_height*in_width + ih*in_width + iw
+                            m_index = oh*out_width + ow
+                            k_index = ic*kernel_h*kernel_w + kh*kernel_w + kw
+                            ofm[m_index][k_index] = ifm[ifm_index]
+    return ofm
+
+def im2col_mk_major(ifm, layer):
+    out_height = layer['out_height']
+    out_width = layer['out_width']
+    in_height = layer['in_height']
+    in_width = layer['in_width']
+    in_channel = layer['in_channel']
+    kernel_h = layer['kernel_h']
+    kernel_w = layer['kernel_w']
+    stride_h = layer['stride_h']
+    stride_w = layer['stride_w']
+    pad_h = layer['pad_h']
+    pad_w = layer['pad_w']
+    dilation_h = layer['dilation_h']
+    dilation_w = layer['dilation_w']
+
+    M = out_height * out_width
+    K = in_channel * kernel_h * kernel_w
+    ofm = np.zeros((M, K))
+
+    for m in range(M):
+        for k in range(K):
+            oh = m // out_width
+            ow = m % out_width
+            ic = k // (kernel_h * kernel_w)
+            kh = (k // kernel_w) % kernel_h
+            kw = k % kernel_w
+            ih = oh * stride_h - pad_h + kh * dilation_h
+            iw = ow * stride_w - pad_w + kw * dilation_w
+            if (0 <= ih < in_height) and (0 <= iw < in_width):
+                ifm_index = ic * in_height * in_width + ih * in_width + iw
+                ofm[m][k] = ifm[ifm_index]
     return ofm
 
 def test_convolution():
@@ -85,11 +132,10 @@ def test_convolution():
     # 调用卷积函数
     ofm_custom = convolution(ifm.flatten(), weight.flatten(), bias.flatten(), layer)
 
-    ifm_im2col = im2col(ifm.flatten(), layer)
+    ifm_im2col = im2col_ifm_major(ifm.flatten(), layer)
     weight_im2col = weight.reshape((out_channel, in_channel*kernel_h*kernel_w))
     ofm_im2col = np.matmul(ifm_im2col, weight_im2col.transpose())
     ofm_im2col_t = ofm_im2col.transpose()
-    print(ifm_im2col.shape, weight_im2col.transpose().shape, ofm_im2col_t.shape, out_channel)
     for i in range(out_channel):
         ofm_im2col_t[i] += bias[i]
     
