@@ -105,7 +105,7 @@ def ifm_CHW2MK(ifm, layer):
                 ofm[m][k] = ifm[ifm_index]
     return ofm
 
-def ifm_CHW2CHWc(ifm, layer):
+def fm_CHW2CHWc(ifm, layer):
     in_channel = layer['in_channel']
     in_height = layer['in_height']
     in_width = layer['in_width']
@@ -144,7 +144,7 @@ def wt_OCICKhKw2OCCcKhKw(weight, layer):
         weight_OCCcKhKw[:, ic, :, :] = weight[:, ic, :, :]
     return weight_OCCcKhKw.reshape((out_channel, C*c*kernel_h*kernel_w))
 
-def ifm_CHWc2MK(ifm, layer):
+def fm_CHWc2MK(ifm, layer):
     out_height = layer['out_height']
     out_width = layer['out_width']
     in_height = layer['in_height']
@@ -178,7 +178,7 @@ def ifm_CHWc2MK(ifm, layer):
                 ofm[m][k] = ifm[C_idx][ih][iw][c_idx]
     return ofm
 
-def ifm_CHWc2M1K1M0K0(ifm, layer):
+def fm_CHWc2M1K1M0K0(ifm, layer):
     out_height = layer['out_height']
     out_width = layer['out_width']
     in_height = layer['in_height']
@@ -349,9 +349,9 @@ def test_convolution():
     bias = np.random.randint(-128, 127, size=out_channel)
 
     # 先转成CHWc, 再使用im2col和gemm
-    ifm_CHWc = ifm_CHW2CHWc(ifm, layer)
+    ifm_CHWc = fm_CHW2CHWc(ifm, layer)
     weight_OCCcKhKw = wt_OCICKhKw2OCCcKhKw(weight, layer)
-    ifm_M1K1M0K0 = ifm_CHWc2M1K1M0K0(ifm_CHWc, layer)
+    ifm_M1K1M0K0 = fm_CHWc2M1K1M0K0(ifm_CHWc, layer)
     weight_K1N1K0N0 = wt_OCCcKhKw2K1N1K0N0(weight_OCCcKhKw, layer)
     bias_N1N0 = bias_N2N02N1N0(bias, layer)
     print("ifm_CHWc shape: ", ifm_CHWc.shape)
