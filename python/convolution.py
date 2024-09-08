@@ -5,19 +5,33 @@ import numpy as np
 k0 = c = 16
 
 def convolution(ifm, weight, bias, layer):
-    ofm = np.zeros((layer['out_channel'], layer['out_height'], layer['out_width']))
-    for oh in range(layer['out_height']):
-        for ow in range(layer['out_width']):
-            for oc in range(layer['out_channel']):
+    out_height = layer['out_height']
+    out_width = layer['out_width']
+    in_height = layer['in_height']
+    in_width = layer['in_width']
+    in_channel = layer['in_channel']
+    out_channel = layer['out_channel']
+    kernel_h = layer['kernel_h']
+    kernel_w = layer['kernel_w']
+    stride_h = layer['stride_h']
+    stride_w = layer['stride_w']
+    pad_h = layer['pad_h']
+    pad_w = layer['pad_w']
+    dilation_h = layer['dilation_h']
+    dilation_w = layer['dilation_w']
+    ofm = np.zeros((out_channel, out_height, out_width))
+    for oh in range(out_height):
+        for ow in range(out_width):
+            for oc in range(out_channel):
                 y_data = 0
-                for kh in range(layer['kernel_h']):
-                    for kw in range(layer['kernel_w']):
-                        in_height = oh * layer['stride_h'] - layer['pad_h'] + kh * layer['dilation_h']
-                        in_width = ow * layer['stride_w'] - layer['pad_w'] + kw * layer['dilation_w']
-                        if (0 <= in_height < layer['in_height']) and (0 <= in_width < layer['in_width']):
-                            for ic in range(layer['in_channel']):
-                                ifm_index = ic * layer['in_height'] * layer['in_width'] + in_height * layer['in_width'] + in_width
-                                wgt_index = oc * layer['kernel_h'] * layer['kernel_w'] * layer['in_channel'] + ic * layer['kernel_h'] * layer['kernel_w'] + kh * layer['kernel_w'] + kw
+                for kh in range(kernel_h):
+                    for kw in range(kernel_w):
+                        ih = oh * stride_h - pad_h + kh * dilation_h
+                        iw = ow * stride_w - pad_w + kw * dilation_w
+                        if (0 <= ih < in_height) and (0 <= iw < in_width):
+                            for ic in range(in_channel):
+                                ifm_index = ic * in_height * in_width + ih * in_width + iw
+                                wgt_index = oc * kernel_h * kernel_w * in_channel + ic * kernel_h * kernel_w + kh * kernel_w + kw
                                 x_data = ifm[ifm_index]
                                 w_data = weight[wgt_index]
                                 y_data += x_data * w_data
@@ -232,7 +246,6 @@ def test_convolution():
 
     # 将PyTorch张量转换为NumPy数组
     ofm_torch_np = ofm_torch.detach().numpy().flatten()
-
 
     diff = ofm_torch_np - ofm_im2col_t.flatten()
     if(np.abs(diff).sum() == 0.0):
