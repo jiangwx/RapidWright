@@ -40,7 +40,7 @@ def convolution(ifm, weight, bias, layer):
                 ofm[oc][oh][ow] = y_data + bias[oc]
     return ofm
 
-def fm_CHW2CHWc(ifm, layer):
+def CHW2CHWc(ifm, layer):
     in_channel = layer['in_channel']
     in_height = layer['in_height']
     in_width = layer['in_width']
@@ -53,7 +53,7 @@ def fm_CHW2CHWc(ifm, layer):
     ifm_CHWc = ifm_HWCc.transpose((2, 0, 1, 3))
     return ifm_CHWc
 
-def fm_CHWc2M1K1M0K0(ifm, layer):
+def CHWc2M1K1M0K0(ifm, layer):
     out_height = layer['out_height']
     out_width = layer['out_width']
     in_height = layer['in_height']
@@ -92,7 +92,7 @@ def fm_CHWc2M1K1M0K0(ifm, layer):
                     ofm[m1][k1][m0] = ifm[C_idx][ih][iw]
     return ofm
 
-def wt_OCICKhKw2OCCKhKwc(weight, layer):
+def OCICKhKw2OCCKhKwc(weight, layer):
     out_channel = layer['out_channel']
     in_channel = layer['in_channel']
     kernel_h = layer['kernel_h']
@@ -107,7 +107,7 @@ def wt_OCICKhKw2OCCKhKwc(weight, layer):
     weight_OCCKhKwc = weight_OCKhKwCc.transpose((0, 3, 1, 2, 4))
     return weight_OCCKhKwc
 
-def wt_OCCKhKwc2K1N1K0N0(weight, layer):
+def OCCKhKwc2K1N1K0N0(weight, layer):
     out_channel = layer['out_channel']
     in_channel = layer['in_channel']
     kernel_h = layer['kernel_h']
@@ -131,7 +131,7 @@ def wt_OCCKhKwc2K1N1K0N0(weight, layer):
                         weight_K1N1K0N0[k1][n1][k0][n0] = weight_KN[k][n]
     return weight_K1N1K0N0
 
-def bias_N2N02N1N0(bias, layer):
+def N2N1N0(bias, layer):
     out_channel = layer['out_channel']
     N = out_channel
     N1 = (N + N0 - 1) // N0
@@ -164,7 +164,7 @@ def matmul_m1k1m0k0_k1n1k0n0(ifm, weight, bias):
             ofm[m1][n1] = temp
     return ofm
 
-def fm_M1N1M0N02MN(ifm):
+def M1N1M0N02MN(ifm):
     M1 = ifm.shape[0]
     N1 = ifm.shape[1]
     M0 = ifm.shape[2]
@@ -181,7 +181,7 @@ def fm_M1N1M0N02MN(ifm):
                     ofm[m][n] = ifm[m1][n1][m0][n0]
     return ofm
 
-def fm_MN2CHW(fm, layer):
+def MN2CHW(fm, layer):
     out_height = layer['out_height']
     out_width = layer['out_width']
     out_channel = layer['out_channel']
@@ -235,14 +235,14 @@ def test_convolution():
     bias = np.random.randint(-128, 127, size=out_channel)
 
     # 先转成CHWc, 再使用im2col和gemm
-    ifm_CHWc = fm_CHW2CHWc(ifm, layer)
-    weight_OCCKhKwc = wt_OCICKhKw2OCCKhKwc(weight, layer)
-    ifm_M1K1M0K0 = fm_CHWc2M1K1M0K0(ifm_CHWc, layer)
-    weight_K1N1K0N0 = wt_OCCKhKwc2K1N1K0N0(weight_OCCKhKwc, layer)
-    bias_N1N0 = bias_N2N02N1N0(bias, layer)
+    ifm_CHWc = CHW2CHWc(ifm, layer)
+    weight_OCCKhKwc = OCICKhKw2OCCKhKwc(weight, layer)
+    ifm_M1K1M0K0 = CHWc2M1K1M0K0(ifm_CHWc, layer)
+    weight_K1N1K0N0 = OCCKhKwc2K1N1K0N0(weight_OCCKhKwc, layer)
+    bias_N1N0 = N2N1N0(bias, layer)
     ofm_M1N1M0N0 = matmul_m1k1m0k0_k1n1k0n0(ifm_M1K1M0K0, weight_K1N1K0N0, bias_N1N0)
-    ofm_MN = fm_M1N1M0N02MN(ofm_M1N1M0N0)
-    ofm_CHW = fm_MN2CHW(ofm_MN, layer)
+    ofm_MN = M1N1M0N02MN(ofm_M1N1M0N0)
+    ofm_CHW = MN2CHW(ofm_MN, layer)
 
     # 使用torch.nn.Conv2d
     ifm_torch = torch.tensor(ifm, dtype=torch.float32)

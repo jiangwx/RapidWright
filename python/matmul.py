@@ -6,7 +6,7 @@ K0 = c = 16
 M0 = 8
 N0 = 4
 
-def matrix_MK2M1K1M0K0(matrix_mk):
+def MK2M1K1M0K0(matrix_mk):
     matrix_M = matrix_mk.shape[0]
     matrix_K = matrix_mk.shape[1]
     M1 = (matrix_M + M0 - 1) // M0
@@ -22,7 +22,7 @@ def matrix_MK2M1K1M0K0(matrix_mk):
                         matrix_m1k1m0k0[m1][k1][m0][k0] = matrix_mk[m][k]
     return matrix_m1k1m0k0
 
-def matrix_KN2K1N1K0N0(matrix_nk):
+def KN2K1N1K0N0(matrix_nk):
     matrix_K = matrix_nk.shape[0]
     matrix_N = matrix_nk.shape[1]
     K1 = (matrix_K + K0 - 1) // K0
@@ -39,7 +39,7 @@ def matrix_KN2K1N1K0N0(matrix_nk):
     return matrix_k1n1k0n0
 
 
-def bias_N2N02N1N0(bias, layer):
+def N2N1N0(bias, layer):
     N = layer['N']
     N1 = (N + N0 - 1) // N0
     bias_N1N0 = np.zeros((N1, N0))
@@ -77,7 +77,7 @@ def matmul_mk_kn(matrix_mk, matrix_kn, bias):
             matrix_mn[m][n] += bias[n]
     return matrix_mn
 
-def matrix_M1N1M0N02MN(matrix_m1n1m0n0, layer):
+def M1N1M0N02MN(matrix_m1n1m0n0, layer):
     M1 = matrix_m1n1m0n0.shape[0]
     N1 = matrix_m1n1m0n0.shape[1]
     M0 = matrix_m1n1m0n0.shape[2]
@@ -114,11 +114,11 @@ def test_matmul():
     right_matrix = np.random.randint(-128, 127, size=(matrix_K, matrix_N))
     bias_vector = np.random.randint(-128, 127, size=(matrix_N))
 
-    left_matrix_m1k1m0k0 = matrix_MK2M1K1M0K0(left_matrix)
-    right_matrix_k1n1k0n0 = matrix_KN2K1N1K0N0(right_matrix)
-    bias_n1n0 = bias_N2N02N1N0(bias_vector, layer)
+    left_matrix_m1k1m0k0 = MK2M1K1M0K0(left_matrix)
+    right_matrix_k1n1k0n0 = KN2K1N1K0N0(right_matrix)
+    bias_n1n0 = N2N1N0(bias_vector, layer)
     result_matrix_m1n1m0n0 = matmul_m1k1m0k0_k1n1k0n0(left_matrix_m1k1m0k0, right_matrix_k1n1k0n0, bias_n1n0)
-    result_matrix_mn = matrix_M1N1M0N02MN(result_matrix_m1n1m0n0, layer)
+    result_matrix_mn = M1N1M0N02MN(result_matrix_m1n1m0n0, layer)
 
     golden_matrix_mn = matmul_mk_kn(left_matrix, right_matrix, bias_vector)
 
