@@ -10,26 +10,20 @@ def MK2K1MK0(matrix_mk):
     matrix_M = matrix_mk.shape[0]
     matrix_K = matrix_mk.shape[1]
     K1 = (matrix_K + K0 - 1) // K0
-    matrix_k1mk0 = np.zeros((K1, matrix_M, K0))
-    for k1 in range(K1):
-        for m in range(matrix_M):
-            for k0 in range(K0):
-                k = k1 * K0 + k0
-                if(k < matrix_K):
-                    matrix_k1mk0[k1][m][k0] = matrix_mk[m][k]
+    matrix_mk1k0_ = np.zeros((matrix_M, K1*K0))
+    matrix_mk1k0_[:, :matrix_K] = matrix_mk
+    matrix_mk1k0 = matrix_mk1k0_.reshape((matrix_M, K1, K0))
+    matrix_k1mk0 = matrix_mk1k0.transpose((1, 0, 2))
     return matrix_k1mk0
 
 def KN2N1KN0(matrix_nk):
     matrix_K = matrix_nk.shape[0]
     matrix_N = matrix_nk.shape[1]
     N1 = (matrix_N + N0 - 1) // N0
-    matrix_n1kn0 = np.zeros((N1, matrix_K, N0))
-    for n1 in range(N1):
-        for k in range(matrix_K):
-            for n0 in range(N0):
-                n = n1 * N0 + n0
-                if(n < matrix_N):
-                    matrix_n1kn0[n1][k][n0] = matrix_nk[k][n]
+    matrix_nk1n0_ = np.zeros((matrix_K, N1*N0))
+    matrix_nk1n0_[:, :matrix_N] = matrix_nk
+    matrix_nk1n0 = matrix_nk1n0_.reshape((matrix_K, N1, N0))
+    matrix_n1kn0 = matrix_nk1n0.transpose((1, 0, 2))
     return matrix_n1kn0
 
 def K1MK02M1K1M0K0(matrix_k1mk0):
@@ -41,10 +35,9 @@ def K1MK02M1K1M0K0(matrix_k1mk0):
     for m1 in range(M1):
         for k1 in range(K1):
             for m0 in range(M0):
-                for k0 in range(K0):
-                    m = m1 * M0 + m0
-                    if(m < M):
-                        matrix_m1k1m0k0[m1][k1][m0][k0] = matrix_k1mk0[k1][m][k0]
+                m = m1 * M0 + m0
+                if(m < M):
+                    matrix_m1k1m0k0[m1][k1][m0] = matrix_k1mk0[k1][m]
     return matrix_m1k1m0k0
 
 def N1KN02K1N1K0N0(matrix_n1kn0):
@@ -56,10 +49,9 @@ def N1KN02K1N1K0N0(matrix_n1kn0):
     for k1 in range(K1):
         for n1 in range(N1):
             for k0 in range(K0):
-                for n0 in range(N0):
-                    k = k1 * K0 + k0
-                    if(k < K):
-                        matrix_k1n1k0n0[k1][n1][k0][n0] = matrix_n1kn0[n1][k][n0]
+                k = k1 * K0 + k0
+                if(k < K):
+                    matrix_k1n1k0n0[k1][n1][k0] = matrix_n1kn0[n1][k]
     return matrix_k1n1k0n0
 
 def MK2M1K1M0K0(matrix_mk):
