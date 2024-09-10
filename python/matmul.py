@@ -6,6 +6,62 @@ K0 = c = 16
 M0 = 8
 N0 = 4
 
+def MK2K1MK0(matrix_mk):
+    matrix_M = matrix_mk.shape[0]
+    matrix_K = matrix_mk.shape[1]
+    K1 = (matrix_K + K0 - 1) // K0
+    matrix_k1mk0 = np.zeros((K1, matrix_M, K0))
+    for k1 in range(K1):
+        for m in range(matrix_M):
+            for k0 in range(K0):
+                k = k1 * K0 + k0
+                if(k < matrix_K):
+                    matrix_k1mk0[k1][m][k0] = matrix_mk[m][k]
+    return matrix_k1mk0
+
+def KN2N1KN0(matrix_nk):
+    matrix_K = matrix_nk.shape[0]
+    matrix_N = matrix_nk.shape[1]
+    N1 = (matrix_N + N0 - 1) // N0
+    matrix_n1kn0 = np.zeros((N1, matrix_K, N0))
+    for n1 in range(N1):
+        for k in range(matrix_K):
+            for n0 in range(N0):
+                n = n1 * N0 + n0
+                if(n < matrix_N):
+                    matrix_n1kn0[n1][k][n0] = matrix_nk[k][n]
+    return matrix_n1kn0
+
+def K1MK02M1K1M0K0(matrix_k1mk0):
+    K1 = matrix_k1mk0.shape[0]
+    M = matrix_k1mk0.shape[1]
+    K0 = matrix_k1mk0.shape[2]
+    M1 = (M + M0 - 1) // M0
+    matrix_m1k1m0k0 = np.zeros((M1, K1, M0, K0))
+    for m1 in range(M1):
+        for k1 in range(K1):
+            for m0 in range(M0):
+                for k0 in range(K0):
+                    m = m1 * M0 + m0
+                    if(m < M):
+                        matrix_m1k1m0k0[m1][k1][m0][k0] = matrix_k1mk0[k1][m][k0]
+    return matrix_m1k1m0k0
+
+def N1KN02K1N1K0N0(matrix_n1kn0):
+    N1 = matrix_n1kn0.shape[0]
+    K = matrix_n1kn0.shape[1]
+    N0 = matrix_n1kn0.shape[2]
+    K1 = (K + K0 - 1) // K0
+    matrix_k1n1k0n0 = np.zeros((K1, N1, K0, N0))
+    for k1 in range(K1):
+        for n1 in range(N1):
+            for k0 in range(K0):
+                for n0 in range(N0):
+                    k = k1 * K0 + k0
+                    if(k < K):
+                        matrix_k1n1k0n0[k1][n1][k0][n0] = matrix_n1kn0[n1][k][n0]
+    return matrix_k1n1k0n0
+
 def MK2M1K1M0K0(matrix_mk):
     matrix_M = matrix_mk.shape[0]
     matrix_K = matrix_mk.shape[1]
@@ -37,7 +93,6 @@ def KN2K1N1K0N0(matrix_nk):
                     if(k < matrix_K and n < matrix_N):
                         matrix_k1n1k0n0[k1][n1][k0][n0] = matrix_nk[k][n]
     return matrix_k1n1k0n0
-
 
 def N2N1N0(bias, layer):
     N = layer['N']
@@ -114,8 +169,10 @@ def test_matmul():
     right_matrix = np.random.randint(-128, 127, size=(matrix_K, matrix_N))
     bias_vector = np.random.randint(-128, 127, size=(matrix_N))
 
-    left_matrix_m1k1m0k0 = MK2M1K1M0K0(left_matrix)
-    right_matrix_k1n1k0n0 = KN2K1N1K0N0(right_matrix)
+    left_matrix_k1mk0 = MK2K1MK0(left_matrix)
+    right_matrix_n1kn0 = KN2N1KN0(right_matrix)
+    left_matrix_m1k1m0k0 = K1MK02M1K1M0K0(left_matrix_k1mk0)
+    right_matrix_k1n1k0n0 = N1KN02K1N1K0N0(right_matrix_n1kn0)
     bias_n1n0 = N2N1N0(bias_vector, layer)
     result_matrix_m1n1m0n0 = matmul_m1k1m0k0_k1n1k0n0(left_matrix_m1k1m0k0, right_matrix_k1n1k0n0, bias_n1n0)
     result_matrix_mn = M1N1M0N02MN(result_matrix_m1n1m0n0, layer)
